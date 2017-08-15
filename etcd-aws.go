@@ -76,9 +76,12 @@ func buildCluster(s *ec2cluster.Cluster) (initialClusterState string, initialClu
 		if *instance.InstanceId == *localInstance.InstanceId {
 			continue
 		}
-
+		// Initialize the http client with Timeout
+		var netClient = &http.Client{
+			Timeout: time.Second * 10,
+		}
 		// fetch the state of the node.
-		resp, err := http.Get(fmt.Sprintf("http://%s:2379/v2/stats/self", *instance.PrivateIpAddress))
+		resp, err := netClient.Get(fmt.Sprintf("http://%s:2379/v2/stats/self", *instance.PrivateIpAddress))
 		if err != nil {
 			log.Printf("%s: http://%s:2379/v2/stats/self: %s", *instance.InstanceId,
 				*instance.PrivateIpAddress, err)
@@ -118,6 +121,7 @@ func buildCluster(s *ec2cluster.Cluster) (initialClusterState string, initialClu
 }
 
 func main() {
+
 	instanceID := flag.String("instance", "",
 		"The instance ID of the cluster member. If not supplied, then the instance ID is determined from EC2 metadata")
 	clusterTagName := flag.String("tag", "aws:autoscaling:groupName",
@@ -149,10 +153,10 @@ func main() {
 	if d := os.Getenv("ETCD_DATA_DIR"); d != "" {
 		defaultDataDir = d
 	}
+
 	dataDir := flag.String("data-dir", defaultDataDir,
 		"The path to the etcd2 data directory. "+
 			"Environment variable: ETCD_DATA_DIR")
-	flag.Parse()
 
 	var err error
 	if *instanceID == "" {
@@ -178,6 +182,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("ERROR: %s", err)
 	}
+
+	defaultAdvertiseClientUrl := *localInstance.PrivateIpAddress
+	if d := os.Getenv("ETCD_ADVERTISE_CLIENT_URLS"); d != "" {
+		defaultAdvertiseClientUrl = d
+	}
+	advertiseClientURL := flag.String("advertise-client-url", defaultAdvertiseClientUrl,
+		"Change the client advertise URL, by dafault is the Ip address of the etcd host IP")
+	flag.Parse()
 
 	initialClusterState, initialCluster, err := buildCluster(s)
 
@@ -225,7 +237,7 @@ func main() {
 		fmt.Sprintf("ETCD_NAME=%s", *localInstance.InstanceId),
 		fmt.Sprintf("ETCD_DATA_DIR=/var/lib/etcd2"),
 		fmt.Sprintf("ETCD_ELECTION_TIMEOUT=1200"),
-		fmt.Sprintf("ETCD_ADVERTISE_CLIENT_URLS=http://%s:2379", *localInstance.PrivateIpAddress),
+		fmt.Sprintf("ETCD_ADVERTISE_CLIENT_URLS=%s", *advertiseClientURL),
 		fmt.Sprintf("ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379"),
 		fmt.Sprintf("ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380"),
 		fmt.Sprintf("ETCD_INITIAL_CLUSTER_STATE=%s", initialClusterState),
