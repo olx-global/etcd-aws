@@ -3,9 +3,9 @@
 GO_SOURCES=$(shell find . -name \*.go)
 SOURCES=$(GO_SOURCES)
 PLATFORM_BINARIES=dist/etcd-aws.Linux.x86_64
-
-IMAGE_NAME=crewjam/etcd-aws
-GITHUB_USER=crewjam
+ETCD_VERSION=3.1.5
+IMAGE_NAME=topochan/etcd-aws
+GITHUB_USER=topochan
 GITHUB_REPOSITORY=etcd-aws
 
 all: $(PLATFORM_BINARIES)
@@ -19,10 +19,10 @@ dist/cacert.pem:
 
 dist/etcd.Linux.x86_64:
 	[ -d dist ] || mkdir dist
-	curl -L -s https://github.com/coreos/etcd/releases/download/v2.3.7/etcd-v2.3.7-linux-amd64.tar.gz |\
+	curl -L -s https://github.com/coreos/etcd/releases/download/v$(ETCD_VERSION)/etcd-v$(ETCD_VERSION)-linux-amd64.tar.gz |\
 		tar -C dist -xzf -
-	cp dist/etcd-v2.3.7-linux-amd64/etcd dist/etcd.Linux.x86_64
-	rm -rf dist/etcd-v2.3.7-linux-amd64
+	cp dist/etcd-v$(ETCD_VERSION)-linux-amd64/etcd dist/etcd.Linux.x86_64
+	rm -rf dist/etcd-v$(ETCD_VERSION)-linux-amd64
 
 dist/etcd-aws.Linux.x86_64: $(SOURCES)
 	[ -d dist ] || mkdir dist
